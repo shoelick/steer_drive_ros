@@ -49,7 +49,7 @@
 
 #include <steer_drive_controller/odometry.h>
 #include <steer_drive_controller/speed_limiter.h>
-#include <steer_drive_controller/multi_interface_controller.h>
+#include <controller_interface/multi_interface_controller.h>
 
 //#define GUI_DEBUG // uncommentout when you use qtcreator for debugging
 

@@ -97,7 +97,7 @@ namespace steer_bot_hardware_gazebo
       JointHandle cmd_handle = front_steer_jnt_pos_cmd_interface_.getHandle(name);
 
       using namespace joint_limits_interface;
-      boost::shared_ptr<const urdf::Joint> urdf_joint = urdf_model->getJoint(name);
+      urdf::JointConstSharedPtr urdf_joint = urdf_model->getJoint(name);
       JointLimits limits;
       SoftJointLimits soft_limits;
       if (!getJointLimits(urdf_joint, limits) || !getSoftJointLimits(urdf_joint, soft_limits))
@@ -234,7 +234,7 @@ namespace steer_bot_hardware_gazebo
         {
           pos_cmd = front_steer_jnt_pos_cmd_;
         }
-        sim_joints_[i]->SetAngle(0, pos_cmd);
+        sim_joints_[i]->SetPosition(0, pos_cmd);
       }
       else if(gazebo_jnt_name == virtual_front_steer_jnt_names_[INDEX_LEFT])
       {
@@ -250,7 +250,7 @@ namespace steer_bot_hardware_gazebo
         {
           pos_cmd = front_steer_jnt_pos_cmd_;
         }
-        sim_joints_[i]->SetAngle(0, pos_cmd);
+        sim_joints_[i]->SetPosition(0, pos_cmd);
       }
       else
       {
@@ -469,7 +469,7 @@ namespace steer_bot_hardware_gazebo
                                                const int _if_index, const int _sim_jnt_index)
   {
     _jnt_pos[_if_index] +=
-        angles::shortest_angular_distance(_jnt_pos[_if_index], sim_joints_[_sim_jnt_index]->GetAngle(0u).Radian());
+        angles::shortest_angular_distance(_jnt_pos[_if_index], sim_joints_[_sim_jnt_index]->Position(0u));
     _jnt_vel[_if_index] = sim_joints_[_sim_jnt_index]->GetVelocity(0u);
     _jnt_eff[_if_index] = sim_joints_[_sim_jnt_index]->GetForce(0u);
   }
