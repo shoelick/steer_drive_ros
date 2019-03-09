@@ -29,10 +29,10 @@
  */
 
 /**
- * \file 
- * 
+ * \file
+ *
  * \author Masaru Morita
- * 
+ *
  */
 
 #include <stepback_and_steerturn_recovery/stepback_and_steerturn_recovery.h>
@@ -40,8 +40,8 @@
 #include <tf/transform_datatypes.h>
 
 // register as a RecoveryBehavior plugin
-PLUGINLIB_DECLARE_CLASS(stepback_and_steerturn_recovery, StepBackAndSteerTurnRecovery, stepback_and_steerturn_recovery::StepBackAndSteerTurnRecovery,      
-                        nav_core::RecoveryBehavior)
+PLUGINLIB_EXPORT_CLASS(stepback_and_steerturn_recovery::StepBackAndSteerTurnRecovery,
+                         nav_core::RecoveryBehavior)
 
 namespace stepback_and_steerturn_recovery
 {
@@ -62,7 +62,7 @@ StepBackAndSteerTurnRecovery::~StepBackAndSteerTurnRecovery ()
   delete world_model_;
 }
 
-void StepBackAndSteerTurnRecovery::initialize (std::string name, tf::TransformListener* tf,
+void StepBackAndSteerTurnRecovery::initialize (std::string name, tf2_ros::Buffer* tf,
                                 cmap::Costmap2DROS* global_cmap, cmap::Costmap2DROS* local_cmap)
 {
   ROS_ASSERT(!initialized_);
@@ -245,12 +245,12 @@ gm::Twist StepBackAndSteerTurnRecovery::scaleGivenAccelerationLimits (const gm::
 // Get pose in local costmap framoe
 gm::Pose2D StepBackAndSteerTurnRecovery::getCurrentLocalPose () const
 {
-  tf::Stamped<tf::Pose> p;
+  geometry_msgs::PoseStamped p;
   local_costmap_->getRobotPose(p);
   gm::Pose2D pose;
-  pose.x = p.getOrigin().x();
-  pose.y = p.getOrigin().y();
-  pose.theta = tf::getYaw(p.getRotation());
+  pose.x = p.pose.position.x;
+  pose.y = p.pose.position.y;
+  pose.theta = p.pose.orientation.y;
   return pose;
 }
 

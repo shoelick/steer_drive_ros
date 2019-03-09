@@ -1,0 +1,182 @@
+diff --git a/steer_bot_hardware_gazebo/src/steer_bot_hardware_gazebo.cpp b/steer_bot_hardware_gazebo/src/steer_bot_hardware_gazebo.cpp
+index 3649b15..4f4e1cb 100644
+--- a/steer_bot_hardware_gazebo/src/steer_bot_hardware_gazebo.cpp
++++ b/steer_bot_hardware_gazebo/src/steer_bot_hardware_gazebo.cpp
+@@ -97,7 +97,7 @@ namespace steer_bot_hardware_gazebo
+       JointHandle cmd_handle = front_steer_jnt_pos_cmd_interface_.getHandle(name);
+ 
+       using namespace joint_limits_interface;
+-      boost::shared_ptr<const urdf::Joint> urdf_joint = urdf_model->getJoint(name);
++      urdf::JointConstSharedPtr urdf_joint = urdf_model->getJoint(name);
+       JointLimits limits;
+       SoftJointLimits soft_limits;
+       if (!getJointLimits(urdf_joint, limits) || !getSoftJointLimits(urdf_joint, soft_limits))
+@@ -234,7 +234,7 @@ namespace steer_bot_hardware_gazebo
+         {
+           pos_cmd = front_steer_jnt_pos_cmd_;
+         }
+-        sim_joints_[i]->SetAngle(0, pos_cmd);
++        sim_joints_[i]->SetPosition(0, pos_cmd);
+       }
+       else if(gazebo_jnt_name == virtual_front_steer_jnt_names_[INDEX_LEFT])
+       {
+@@ -250,7 +250,7 @@ namespace steer_bot_hardware_gazebo
+         {
+           pos_cmd = front_steer_jnt_pos_cmd_;
+         }
+-        sim_joints_[i]->SetAngle(0, pos_cmd);
++        sim_joints_[i]->SetPosition(0, pos_cmd);
+       }
+       else
+       {
+@@ -469,7 +469,7 @@ namespace steer_bot_hardware_gazebo
+                                                const int _if_index, const int _sim_jnt_index)
+   {
+     _jnt_pos[_if_index] +=
+-        angles::shortest_angular_distance(_jnt_pos[_if_index], sim_joints_[_sim_jnt_index]->GetAngle(0u).Radian());
++        angles::shortest_angular_distance(_jnt_pos[_if_index], sim_joints_[_sim_jnt_index]->Position(0u));
+     _jnt_vel[_if_index] = sim_joints_[_sim_jnt_index]->GetVelocity(0u);
+     _jnt_eff[_if_index] = sim_joints_[_sim_jnt_index]->GetForce(0u);
+   }
+diff --git a/steer_drive_controller/include/steer_drive_controller/steer_drive_controller.h b/steer_drive_controller/include/steer_drive_controller/steer_drive_controller.h
+index 38a9dce..529e0c7 100644
+--- a/steer_drive_controller/include/steer_drive_controller/steer_drive_controller.h
++++ b/steer_drive_controller/include/steer_drive_controller/steer_drive_controller.h
+@@ -49,7 +49,7 @@
+ 
+ #include <steer_drive_controller/odometry.h>
+ #include <steer_drive_controller/speed_limiter.h>
+-#include <steer_drive_controller/multi_interface_controller.h>
++#include <controller_interface/multi_interface_controller.h>
+ 
+ //#define GUI_DEBUG // uncommentout when you use qtcreator for debugging
+ 
+diff --git a/steer_drive_controller/src/steer_drive_controller.cpp b/steer_drive_controller/src/steer_drive_controller.cpp
+index ef240f7..f199b6c 100644
+--- a/steer_drive_controller/src/steer_drive_controller.cpp
++++ b/steer_drive_controller/src/steer_drive_controller.cpp
+@@ -59,7 +59,7 @@ static double euclideanOfVectors(const urdf::Vector3& vec1, const urdf::Vector3&
+  * \param link Link
+  * \return true if the link is modeled as a Cylinder; false otherwise
+  */
+-static bool isCylinder(const boost::shared_ptr<const urdf::Link>& link)
++static bool isCylinder(urdf::LinkConstSharedPtr link)
+ {
+   if (!link)
+   {
+@@ -95,7 +95,7 @@ static bool isCylinder(const boost::shared_ptr<const urdf::Link>& link)
+  * \return true if the wheel radius was found; false other
+ wise
+  */
+-static bool getWheelRadius(const boost::shared_ptr<const urdf::Link>& wheel_link, double& wheel_radius)
++static bool getWheelRadius(urdf::LinkConstSharedPtr wheel_link, double& wheel_radius)
+ {
+   if (!isCylinder(wheel_link))
+   {
+@@ -417,10 +417,10 @@ namespace steer_drive_controller{
+       return false;
+     }
+ 
+-    boost::shared_ptr<urdf::ModelInterface> model(urdf::parseURDF(robot_model_str));
++    urdf::ModelInterfaceSharedPtr model = urdf::parseURDF(robot_model_str);
+ 
+-    boost::shared_ptr<const urdf::Joint> rear_wheel_joint(model->getJoint(rear_wheel_name));
+-    boost::shared_ptr<const urdf::Joint> front_steer_joint(model->getJoint(front_steer_name));
++    urdf::JointConstSharedPtr rear_wheel_joint = model->getJoint(rear_wheel_name);
++    urdf::JointConstSharedPtr front_steer_joint = model->getJoint(front_steer_name);
+ 
+     if (lookup_wheel_separation_h)
+     {
+diff --git a/stepback_and_steerturn_recovery/include/stepback_and_steerturn_recovery/stepback_and_steerturn_recovery.h b/stepback_and_steerturn_recovery/include/stepback_and_steerturn_recovery/stepback_and_steerturn_recovery.h
+index c1cc7b0..d5e2d70 100644
+--- a/stepback_and_steerturn_recovery/include/stepback_and_steerturn_recovery/stepback_and_steerturn_recovery.h
++++ b/stepback_and_steerturn_recovery/include/stepback_and_steerturn_recovery/stepback_and_steerturn_recovery.h
+@@ -40,6 +40,7 @@
+ #include <costmap_2d/costmap_2d_ros.h>
+ #include <geometry_msgs/Pose2D.h>
+ #include <std_msgs/Bool.h>
++#include <tf/transform_listener.h>
+ 
+ namespace gm=geometry_msgs;
+ namespace cmap=costmap_2d;
+@@ -51,18 +52,18 @@ namespace stepback_and_steerturn_recovery
+ {
+ 
+ /// Recovery behavior that takes a given twist and tries to execute it for up to
+-/// d seconds, or until reaching an obstacle.  
++/// d seconds, or until reaching an obstacle.
+ class StepBackAndSteerTurnRecovery : public nav_core::RecoveryBehavior
+ {
+ public:
+-  
++
+   /// Doesn't do anything: initialize is where the actual work happens
+   StepBackAndSteerTurnRecovery();
+ 
+   ~StepBackAndSteerTurnRecovery();
+ 
+   /// Initialize the parameters of the behavior
+-  void initialize (std::string n, tf::TransformListener* tf,
++  void initialize (std::string n, tf2_ros::Buffer* tf,
+                    costmap_2d::Costmap2DROS* global_costmap,
+                    costmap_2d::Costmap2DROS* local_costmap);
+ 
+@@ -111,7 +112,7 @@ private:
+   costmap_2d::Costmap2DROS* local_costmap_;
+   costmap_2d::Costmap2D costmap_; // Copy of local_costmap_, used by world model
+   std::string name_;
+-  tf::TransformListener* tf_;
++  tf2_ros::Buffer* tf_;
+   ros::Publisher cmd_vel_pub_;
+   ros::Publisher recover_run_pub_;
+   bool initialized_;
+@@ -121,7 +122,7 @@ private:
+   mutable base_local_planner::CostmapModel* world_model_;
+ 
+   gm::Twist base_frame_twist_;
+-  
++
+   double duration_;
+   double linear_speed_limit_;
+   double angular_speed_limit_;
+diff --git a/stepback_and_steerturn_recovery/src/stepback_and_steerturn_recovery.cpp b/stepback_and_steerturn_recovery/src/stepback_and_steerturn_recovery.cpp
+index a02656b..fbfc94c 100644
+--- a/stepback_and_steerturn_recovery/src/stepback_and_steerturn_recovery.cpp
++++ b/stepback_and_steerturn_recovery/src/stepback_and_steerturn_recovery.cpp
+@@ -37,7 +37,7 @@
+ #include <tf/transform_datatypes.h>
+ 
+ // register as a RecoveryBehavior plugin
+-PLUGINLIB_DECLARE_CLASS(stepback_and_steerturn_recovery, StepBackAndSteerTurnRecovery, stepback_and_steerturn_recovery::StepBackAndSteerTurnRecovery,      
++PLUGINLIB_EXPORT_CLASS(stepback_and_steerturn_recovery::StepBackAndSteerTurnRecovery,
+                         nav_core::RecoveryBehavior)
+ 
+ namespace stepback_and_steerturn_recovery
+@@ -59,8 +59,8 @@ StepBackAndSteerTurnRecovery::~StepBackAndSteerTurnRecovery ()
+   delete world_model_;
+ }
+ 
+-void StepBackAndSteerTurnRecovery::initialize (std::string name, tf::TransformListener* tf,
+-                                cmap::Costmap2DROS* global_cmap, cmap::Costmap2DROS* local_cmap)
++void StepBackAndSteerTurnRecovery::initialize (std::string name, tf2_ros::Buffer* tf,
++        cmap::Costmap2DROS* global_cmap, cmap::Costmap2DROS* local_cmap)
+ {
+   ROS_ASSERT(!initialized_);
+   name_ = name;
+@@ -242,12 +242,12 @@ gm::Twist StepBackAndSteerTurnRecovery::scaleGivenAccelerationLimits (const gm::
+ // Get pose in local costmap framoe
+ gm::Pose2D StepBackAndSteerTurnRecovery::getCurrentLocalPose () const
+ {
+-  tf::Stamped<tf::Pose> p;
++  geometry_msgs::PoseStamped p;
+   local_costmap_->getRobotPose(p);
+   gm::Pose2D pose;
+-  pose.x = p.getOrigin().x();
+-  pose.y = p.getOrigin().y();
+-  pose.theta = tf::getYaw(p.getRotation());
++  pose.x = p.pose.position.x;
++  pose.y = p.pose.position.y;
++  pose.theta = p.pose.orientation.y;
+   return pose;
+ }
+ 

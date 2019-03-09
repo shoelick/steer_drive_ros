@@ -29,8 +29,8 @@
  */
 
 /**
- * \file 
- * 
+ * \file
+ *
  * Recovery behavior of step back and steer turning
  *
  * \author Masaru Morita
@@ -43,7 +43,9 @@
 #include <base_local_planner/costmap_model.h>
 #include <costmap_2d/costmap_2d_ros.h>
 #include <geometry_msgs/Pose2D.h>
+#include <geometry_msgs/Twist.h>
 #include <std_msgs/Bool.h>
+#include <tf/transform_listener.h>
 
 namespace gm=geometry_msgs;
 namespace cmap=costmap_2d;
@@ -55,18 +57,18 @@ namespace stepback_and_steerturn_recovery
 {
 
 /// Recovery behavior that takes a given twist and tries to execute it for up to
-/// d seconds, or until reaching an obstacle.  
+/// d seconds, or until reaching an obstacle.
 class StepBackAndSteerTurnRecovery : public nav_core::RecoveryBehavior
 {
 public:
-  
+
   /// Doesn't do anything: initialize is where the actual work happens
   StepBackAndSteerTurnRecovery();
 
   ~StepBackAndSteerTurnRecovery();
 
   /// Initialize the parameters of the behavior
-  void initialize (std::string n, tf::TransformListener* tf,
+  void initialize (std::string n, tf2_ros::Buffer* tf,
                    costmap_2d::Costmap2DROS* global_costmap,
                    costmap_2d::Costmap2DROS* local_costmap);
 
@@ -115,7 +117,7 @@ private:
   costmap_2d::Costmap2DROS* local_costmap_;
   costmap_2d::Costmap2D costmap_; // Copy of local_costmap_, used by world model
   std::string name_;
-  tf::TransformListener* tf_;
+  tf2_ros::Buffer* tf_;
   ros::Publisher cmd_vel_pub_;
   ros::Publisher recover_run_pub_;
   bool initialized_;
@@ -125,7 +127,7 @@ private:
   mutable base_local_planner::CostmapModel* world_model_;
 
   gm::Twist base_frame_twist_;
-  
+
   double duration_;
   double linear_speed_limit_;
   double angular_speed_limit_;
